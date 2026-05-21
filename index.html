@@ -1,330 +1,426 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="cs">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Měření zorného úhlu</title>
-  <style>
-    :root{
-      --bg:#f3f5f1;
-      --panel:#ffffffd9;
-      --text:#17201a;
-      --muted:#5d6b61;
-      --accent:#6f8f72;
-      --accent2:#9db79d;
-      --line:#111;
-      --soft:#e3eadf;
-      --shadow:0 18px 55px rgba(36,48,40,.13);
-      --scale:1;
-      --pxPerMm:3.78;
-    }
-    *{box-sizing:border-box}
-    body{
-      margin:0;
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      background:radial-gradient(circle at top left,#edf4ea,var(--bg));
-      color:var(--text);
-      min-height:100vh;
-    }
-    header{
-      padding:18px 22px 10px;
-      display:flex;
-      gap:16px;
-      flex-wrap:wrap;
-      align-items:flex-end;
-      justify-content:space-between;
-    }
-    h1{margin:0;font-size:clamp(24px,3vw,42px);letter-spacing:-.04em}
-    .subtitle{color:var(--muted);margin-top:4px;font-size:15px}
-    .app{display:grid;grid-template-columns:380px 1fr;gap:18px;padding:12px 22px 22px}
-    .panel{
-      background:var(--panel);
-      border:1px solid rgba(80,100,80,.13);
-      border-radius:24px;
-      box-shadow:var(--shadow);
-      padding:18px;
-      backdrop-filter:blur(10px);
-    }
-    .controls{position:sticky;top:14px;align-self:start;max-height:calc(100vh - 28px);overflow:auto}
-    .group{padding:14px 0;border-bottom:1px solid var(--soft)}
-    .group:last-child{border-bottom:0}
-    label{display:block;font-weight:700;margin-bottom:7px}
-    .hint{font-size:13px;color:var(--muted);line-height:1.35;margin-top:6px}
-    input[type="number"], select{
-      width:100%;padding:11px 12px;border-radius:14px;border:1px solid #cdd8cc;background:#fff;font-size:16px;
-    }
-    input[type="range"]{width:100%;accent-color:var(--accent)}
-    .row{display:grid;grid-template-columns:1fr 95px;gap:10px;align-items:center}
-    .buttons{display:flex;gap:9px;flex-wrap:wrap;margin-top:10px}
-    button{
-      border:0;background:var(--accent);color:white;border-radius:999px;padding:10px 14px;font-weight:800;cursor:pointer;
-      box-shadow:0 8px 18px rgba(90,120,92,.22);
-    }
-    button.secondary{background:#e6ece4;color:#263328;box-shadow:none}
-    button.warn{background:#343b35;color:#fff}
-    .readout{
-      display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;
-    }
-    .metric{background:#f4f8f2;border-radius:18px;padding:12px;border:1px solid #dfe8dc}
-    .metric b{display:block;font-size:22px;margin-top:2px}
-    .metric span{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
-    .screen{
-      min-height:calc(100vh - 118px);
-      overflow:auto;
-      position:relative;
-    }
-    .calibration{
-      display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:18px;padding:14px;border-radius:20px;background:#f8faf6;border:1px dashed #b9c8b6;
-    }
-    .cal-line{
-      width:calc(var(--calMm) * var(--pxPerMm) * var(--scale) * 1px);
-      height:12px;background:#111;border-radius:999px;position:relative;min-width:2px;
-    }
-    .cal-line::after{
-      content:attr(data-label);position:absolute;left:50%;top:18px;transform:translateX(-50%);font-size:13px;color:var(--muted);white-space:nowrap;
-    }
-    .legend{font-size:14px;color:var(--muted);line-height:1.45}
-    .chart{display:flex;flex-direction:column;gap:18px;padding:14px 0 40px;align-items:flex-start}
-    .pair-card{
-      width:100%;background:white;border-radius:24px;border:1px solid #e1e8de;padding:18px 18px 14px;
-      display:grid;grid-template-columns:160px 1fr 190px;gap:18px;align-items:center;
-    }
-    .pair-card.active{outline:4px solid rgba(111,143,114,.35)}
-    .pair-label{font-weight:900;font-size:22px}
-    .pair-sub{font-size:13px;color:var(--muted);margin-top:4px;line-height:1.35}
-    .pair-area{
-      min-height:96px;display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:center;justify-items:center;overflow:visible;background:linear-gradient(90deg,#fafcf8,#fff);border-radius:18px;padding:10px;
-    }
-    .stimulusWrap{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0}
-    .stimulusLabel{font-size:14px;font-weight:900;color:var(--muted);letter-spacing:.04em}
-    .pair{
-      position:relative;height:68px;
-      width:calc((2 * var(--lineMm) + var(--gapMm)) * var(--pxPerMm) * var(--scale) * 1px);
-      min-width:1px;
-    }
-    .bar{
-      position:absolute;top:0;width:calc(var(--lineMm) * var(--pxPerMm) * var(--scale) * 1px);height:68px;background:var(--line);border-radius:3px;min-width:1px;
-    }
-    .bar.left{left:0}.bar.right{right:0}
-    .pair.no-gap::after{
-      content:"";position:absolute;top:0;bottom:0;left:calc(var(--lineMm) * var(--pxPerMm) * var(--scale) * 1px);width:calc(var(--gapMm) * var(--pxPerMm) * var(--scale) * 1px);background:var(--line);min-width:1px;
-    }
-    .choose{justify-self:end;text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
-    .choose button{padding:9px 12px;font-size:13px}
-    .choiceState{font-size:13px;color:var(--muted);line-height:1.3;min-height:18px}
-    .choiceState.good{color:#2f7d3a;font-weight:900}.choiceState.bad{color:#a33;font-weight:900}
-    .resultBox{
-      margin-top:16px;padding:16px;border-radius:22px;background:#ecf4e9;border:1px solid #d4e2d1;
-      font-size:16px;line-height:1.45;
-    }
-    .resultBox strong{font-size:24px}
-    .formula{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#f7faf6;padding:10px;border-radius:14px;margin-top:10px;font-size:13px;color:#334037}
-    .fullscreenHint{font-size:13px;color:var(--muted);text-align:right}
-    .dark{--bg:#111610;--panel:#192018e6;--text:#eef5ec;--muted:#b7c4b4;--accent:#81a981;--accent2:#486548;--line:#f4f4f4;--soft:#2a3528;--shadow:0 18px 55px rgba(0,0,0,.32)}
-    .dark input,.dark select{background:#10150f;color:#eef5ec;border-color:#34422f}.dark .metric,.dark .calibration,.dark .resultBox{background:#141b13;border-color:#34422f}.dark .pair-card{background:#171e16;border-color:#2d382b}.dark .pair-area{background:#11170f}.dark .formula{background:#10150f;color:#dce8d9}.dark button.secondary{background:#2a3528;color:#eef5ec}
-    .hide-ui .controls,.hide-ui header{display:none}.hide-ui .app{grid-template-columns:1fr;padding:14px}.hide-ui .screen{min-height:calc(100vh - 28px)}
-    @media(max-width:900px){.app{grid-template-columns:1fr}.controls{position:static}.pair-card{grid-template-columns:1fr;gap:10px}.choose{text-align:left;justify-self:start}.pair-area{justify-content:flex-start;overflow:auto}.fullscreenHint{text-align:left}}
-    @media print{.controls,header,.choose,.buttons{display:none}.app{display:block}.panel{box-shadow:none}.pair-card{break-inside:avoid}}
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Měření rozlišovací schopnosti oka – Landoltovo C</title>
+<style>
+  :root{
+    --bg:#f4f6f8;
+    --panel:#ffffff;
+    --text:#16202a;
+    --muted:#607080;
+    --accent:#2563eb;
+    --ok:#15803d;
+    --bad:#b91c1c;
+    --line:#111827;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    background:var(--bg);
+    color:var(--text);
+  }
+  header{
+    padding:18px 20px;
+    background:linear-gradient(135deg,#e8f0ff,#ffffff);
+    border-bottom:1px solid #d8dee8;
+  }
+  h1{margin:0;font-size:22px}
+  header p{margin:6px 0 0;color:var(--muted)}
+  main{
+    display:grid;
+    grid-template-columns:360px 1fr;
+    gap:18px;
+    padding:18px;
+  }
+  section{
+    background:var(--panel);
+    border:1px solid #dbe1ea;
+    border-radius:18px;
+    padding:16px;
+    box-shadow:0 10px 25px rgba(15,23,42,.06);
+  }
+  label{
+    display:block;
+    font-size:13px;
+    font-weight:650;
+    margin-top:12px;
+  }
+  input,select,button{
+    width:100%;
+    font:inherit;
+    border-radius:12px;
+    border:1px solid #cbd5e1;
+    padding:10px 12px;
+    background:#fff;
+  }
+  input{margin-top:5px}
+  button{
+    cursor:pointer;
+    border:none;
+    background:var(--accent);
+    color:white;
+    font-weight:700;
+    margin-top:10px;
+  }
+  button.secondary{
+    background:#e2e8f0;
+    color:#111827;
+  }
+  button.good{background:var(--ok)}
+  .small{font-size:12px;color:var(--muted);line-height:1.35}
+  .calLineWrap{
+    margin:14px 0 4px;
+    padding:14px;
+    border-radius:14px;
+    background:#f8fafc;
+    border:1px dashed #cbd5e1;
+    overflow-x:auto;
+  }
+  #calibrationLine{
+    height:4px;
+    width:300px;
+    background:var(--line);
+    border-radius:99px;
+    position:relative;
+  }
+  #calibrationLine::before,
+  #calibrationLine::after{
+    content:"";
+    position:absolute;
+    top:-8px;
+    width:4px;
+    height:20px;
+    background:var(--line);
+    border-radius:99px;
+  }
+  #calibrationLine::before{left:0}
+  #calibrationLine::after{right:0}
+  .resultBox{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin-top:12px;
+  }
+  .metric{
+    background:#f8fafc;
+    border:1px solid #e2e8f0;
+    padding:10px;
+    border-radius:14px;
+  }
+  .metric strong{display:block;font-size:20px}
+  .testArea{
+    min-height:72vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:18px;
+    position:relative;
+  }
+  .fixation{
+    position:absolute;
+    top:18px;
+    font-size:14px;
+    color:var(--muted);
+  }
+  .landoltStage{
+    min-height:220px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  #landolt{
+    display:block;
+  }
+  .choiceGrid{
+    display:grid;
+    grid-template-columns:repeat(3,70px);
+    grid-template-rows:repeat(3,54px);
+    gap:8px;
+    align-items:center;
+    justify-content:center;
+  }
+  .choiceGrid button{
+    margin:0;
+    padding:8px;
+    height:54px;
+    border-radius:14px;
+    background:#111827;
+  }
+  .choiceGrid .empty{visibility:hidden}
+  .feedback{
+    min-height:28px;
+    font-weight:750;
+    text-align:center;
+  }
+  .feedback.ok{color:var(--ok)}
+  .feedback.bad{color:var(--bad)}
+  table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:12px;
+    font-size:13px;
+  }
+  th,td{
+    border-bottom:1px solid #e5e7eb;
+    padding:7px 5px;
+    text-align:right;
+  }
+  th:first-child,td:first-child{text-align:left}
+  .warning{
+    background:#fff7ed;
+    border:1px solid #fed7aa;
+    color:#7c2d12;
+    padding:10px;
+    border-radius:14px;
+    margin-top:12px;
+    font-size:13px;
+  }
+  @media(max-width:850px){
+    main{grid-template-columns:1fr}
+    .testArea{min-height:60vh}
+  }
+</style>
 </head>
 <body>
-  <header>
-    <div>
-      <h1>Měření zorného úhlu</h1>
-      <div class="subtitle">Test dvojic čárek na plátně – žák vybírá, zda je mezera v A nebo v B.</div>
+<header>
+  <h1>Měření rozlišovací schopnosti oka – Landoltovo C</h1>
+  <p>Kalibrace přes pravítko + vzdálenost oka od telefonu. Výstupem je úhlová velikost mezery v úhlových minutách.</p>
+</header>
+
+<main>
+  <section>
+    <h2 style="margin-top:0">Kalibrace</h2>
+
+    <div class="calLineWrap">
+      <div id="calibrationLine"></div>
     </div>
-    <div class="fullscreenHint">Tip: klávesa <b>F</b> skryje ovládání, <b>D</b> přepne tmavý režim.</div>
-  </header>
+    <p class="small">Změř pouze vodorovnou část mezi vnitřními hranami svislých konců (bez těch svislých čárek).</p>
 
-  <main class="app">
-    <aside class="panel controls">
-      <div class="group">
-        <label>1) Kalibrační čára má mít na plátně</label>
-        <div class="row"><input id="calMm" type="number" value="100" min="10" max="1000" step="1"><span>mm</span></div>
-        <div class="hint">Změř pravítkem na plátně. Posuvníkem níže uprav velikost tak, aby kalibrační čára skutečně měla tento rozměr.</div>
-      </div>
-      <div class="group">
-        <label>2) Zvětšení / zmenšení promítaného obrazce</label>
-        <input id="scale" type="range" min="0.1" max="8" value="1" step="0.01">
-        <div class="readout">
-          <div class="metric"><span>Měřítko</span><b id="scaleOut">1,00×</b></div>
-          <div class="metric"><span>1 mm na plátně</span><b id="pxOut">3,78 px</b></div>
-        </div>
-        <div class="buttons">
-          <button class="secondary" data-scale="0.5">0,5×</button>
-          <button class="secondary" data-scale="1">1×</button>
-          <button class="secondary" data-scale="2">2×</button>
-          <button class="secondary" data-scale="4">4×</button>
-        </div>
-      </div>
-      <div class="group">
-        <label>3) Vzdálenost žáka od plátna</label>
-        <div class="row"><input id="distance" type="number" value="5" min="0.2" max="50" step="0.1"><span>m</span></div>
-        <div class="hint">Zorný úhel počítám z mezery mezi čárkami: θ = 2·arctan((mezera/2)/vzdálenost).</div>
-      </div>
-      <div class="group">
-        <label>4) Řada rozestupů</label>
-        <select id="preset">
-          <option value="fine">Jemná kolem 1′: 0,5′–3′</option>
-          <option value="wide">Široká: 0,5′–10′</option>
-          <option value="mm">Pevné mezery v mm</option>
-        </select>
-        <div class="hint">Nejpraktičtější je jemná řada. Normální dobrá rozlišovací schopnost oka je přibližně 1 úhlová minuta.</div>
-      </div>
-      <div class="group">
-        <label>Tloušťka jedné čárky na plátně</label>
-        <div class="row"><input id="lineMm" type="number" value="2" min="0.2" max="30" step="0.1"><span>mm</span></div>
-        <div class="hint">Mezera zůstává pevná. Čárky tloustnou směrem ven od mezery, takže ji nikdy nepřekryjí.</div>
-      </div>
-      <div class="buttons">
-        <button id="newTest" class="secondary">Nové rozmíchání</button>
-        <button id="toggleUi" class="warn">Promítací režim</button>
-        <button id="toggleDark" class="secondary">Tmavý režim</button>
-        <button id="printBtn" class="secondary">Tisk</button>
-      </div>
-      <div class="resultBox" id="resultBox">
-        Vyber u řádku, jestli je mezera v A nebo v B. Po správné volbě se řádek počítá jako rozlišený.
-      </div>
-    </aside>
+    <label>Délka kalibrační čáry na displeji [mm]</label>
+    <input id="calMm" type="number" value="80" min="1" step="0.1">
 
-    <section class="panel screen">
-      <div class="calibration">
-        <div class="cal-line" id="calLine" data-label="100 mm"></div>
-        <div class="legend"><b>Kalibrace:</b> tato čára má na plátně odpovídat zadanému rozměru. Po změně zoomu projektoru znovu zkalibruj.</div>
+    <label>Vzdálenost oka od displeje [cm]</label>
+    <input id="distCm" type="number" value="40" min="5" step="1">
+
+    <label>Velikost mezery Landoltova C [úhlové minuty]</label>
+    <input id="arcmin" type="number" value="1.0" min="0.1" step="0.1">
+
+    <label>Počet možností</label>
+    <select id="directions">
+      <option value="4">4 směry: nahoru, dolů, vlevo, vpravo</option>
+      <option value="8" selected>8 směrů včetně diagonál</option>
+    </select>
+
+    <button id="applyBtn">Přepočítat a zobrazit</button>
+    <button class="secondary" id="randomBtn">Nové náhodné C</button>
+
+    <div class="resultBox">
+      <div class="metric">
+        <span class="small">měřítko</span>
+        <strong id="pxPerMm">–</strong>
+        <span class="small">px/mm</span>
       </div>
-      <div class="chart" id="chart"></div>
-    </section>
-  </main>
+      <div class="metric">
+        <span class="small">mezera</span>
+        <strong id="gapMm">–</strong>
+        <span class="small">mm na displeji</span>
+      </div>
+      <div class="metric">
+        <span class="small">mezera</span>
+        <strong id="gapPx">–</strong>
+        <span class="small">px</span>
+      </div>
+      <div class="metric">
+        <span class="small">průměr C</span>
+        <strong id="diamMm">–</strong>
+        <span class="small">mm</span>
+      </div>
+    </div>
+
+    <div class="warning">
+      Pro férové měření se neptej „vidíš to?“. Žák musí vždy určit směr mezery. Když nevidí, bude hádat a úspěšnost spadne k náhodě.
+    </div>
+
+    <h3>Výsledky</h3>
+    <button class="secondary" id="resetBtn">Vynulovat výsledky</button>
+    <table>
+      <thead>
+        <tr><th>Velikost</th><th>Pokusy</th><th>Správně</th><th>Úspěšnost</th></tr>
+      </thead>
+      <tbody id="resultsBody"></tbody>
+    </table>
+  </section>
+
+  <section class="testArea">
+    <div class="fixation">Žák drží hlavu klidně, dívá se na C a určí, kde je mezera.</div>
+
+    <div class="landoltStage">
+      <svg id="landolt" width="160" height="160" aria-label="Landoltovo C">
+        <g id="landoltGroup"></g>
+      </svg>
+    </div>
+
+    <div class="feedback" id="feedback"></div>
+
+    <div class="choiceGrid">
+      <button data-angle="225">↖</button>
+      <button data-angle="270">↑</button>
+      <button data-angle="315">↗</button>
+      <button data-angle="180">←</button>
+      <button class="empty">·</button>
+      <button data-angle="0">→</button>
+      <button data-angle="135">↙</button>
+      <button data-angle="90">↓</button>
+      <button data-angle="45">↘</button>
+    </div>
+
+    <p class="small" style="max-width:620px;text-align:center">
+      Klávesnice: šipky pro 4 směry, Q/E/Z/C pro diagonály. 
+      Standardně má celé C průměr 5× větší než mezera, podobně jako u optotypu.
+    </p>
+  </section>
+</main>
 
 <script>
-(function(){
-  const $ = sel => document.querySelector(sel);
-  const root = document.documentElement;
-  const chart = $('#chart');
-  const calMm = $('#calMm');
-  const scale = $('#scale');
-  const distance = $('#distance');
-  const lineMm = $('#lineMm');
-  const preset = $('#preset');
-  const resultBox = $('#resultBox');
-  const calLine = $('#calLine');
-  const scaleOut = $('#scaleOut');
-  const pxOut = $('#pxOut');
-  let selected = null;
-  let answers = [];
-  let mixSeed = Date.now();
+const calPx = 300; // CSS pixel length of calibration line
+let currentAngle = 0;
+let stats = {};
 
-  const basePxPerMm = 96 / 25.4;
+const el = id => document.getElementById(id);
 
-  function pseudoRandom01(n){
-    const x = Math.sin(n * 12.9898 + mixSeed * 0.001) * 43758.5453;
-    return x - Math.floor(x);
-  }
-  function sideWithGap(i){
-    return pseudoRandom01(i + 1) < 0.5 ? 'left' : 'right';
-  }
+function fmt(x, digits=2){
+  if(!Number.isFinite(x)) return "–";
+  return x.toLocaleString("cs-CZ", {maximumFractionDigits:digits, minimumFractionDigits:0});
+}
 
-  function fmt(n, digits=2){
-    return Number(n).toLocaleString('cs-CZ', {maximumFractionDigits:digits, minimumFractionDigits:digits});
-  }
-  function angleMinFromGap(gapMm, distM){
-    const gapM = gapMm / 1000;
-    const rad = 2 * Math.atan((gapM/2) / distM);
-    return rad * 180 / Math.PI * 60;
-  }
-  function gapMmFromAngleMin(min, distM){
-    const rad = min / 60 * Math.PI / 180;
-    return 2 * distM * 1000 * Math.tan(rad/2);
-  }
-  function rows(){
-    const d = Number(distance.value) || 5;
-    if(preset.value === 'wide') return [0.5,0.75,1,1.25,1.5,2,2.5,3,4,5,7.5,10].map(a=>({angle:a,gap:gapMmFromAngleMin(a,d)}));
-    if(preset.value === 'mm') return [0.25,0.4,0.6,0.8,1,1.5,2,3,4,5,7,10,15,20].map(g=>({gap:g,angle:angleMinFromGap(g,d)}));
-    return [0.5,0.6,0.7,0.8,0.9,1,1.1,1.25,1.5,1.75,2,2.5,3].map(a=>({angle:a,gap:gapMmFromAngleMin(a,d)}));
-  }
-  function updateVars(){
-    const s = Number(scale.value) || 1;
-    root.style.setProperty('--scale', s);
-    root.style.setProperty('--pxPerMm', basePxPerMm);
-    root.style.setProperty('--calMm', Number(calMm.value) || 100);
-    root.style.setProperty('--lineMm', Number(lineMm.value) || 2);
-    calLine.dataset.label = `${fmt(Number(calMm.value)||100,0)} mm`;
-    scaleOut.textContent = fmt(s,2) + '×';
-    pxOut.textContent = fmt(basePxPerMm*s,2) + ' px';
-  }
-  function render(){
-    updateVars();
-    chart.innerHTML = '';
-    const data = rows();
-    answers = answers.slice(0, data.length);
-    data.forEach((r,i)=>{
-      const gapSide = sideWithGap(i);
-      const leftHasGap = gapSide === 'left';
-      const answer = answers[i];
-      const state = answer ? (answer === gapSide ? 'good' : 'bad') : '';
-      const stateText = answer ? (answer === gapSide ? 'správně – mezera rozlišena' : 'špatně – mezera nerozlišena') : '';
-      const card = document.createElement('div');
-      card.className = 'pair-card' + (selected===i?' active':'');
-      card.style.setProperty('--gapMm', r.gap);
-      card.style.setProperty('--lineMm', Number(lineMm.value)||2);
-      card.innerHTML = `
-        <div>
-          <div class="pair-label">${fmt(r.angle,2)}′</div>
-          <div class="pair-sub">mezera ${fmt(r.gap,2)} mm na plátně<br>čárka ${fmt(Number(lineMm.value)||2,1)} mm</div>
-        </div>
-        <div class="pair-area" aria-label="Vyber, kde je vidět mezera pro ${fmt(r.angle,2)} úhlových minut">
-          <div class="stimulusWrap">
-            <div class="stimulusLabel">A</div>
-            <div class="pair ${leftHasGap ? 'has-gap' : 'no-gap'}"><div class="bar left"></div><div class="bar right"></div></div>
-          </div>
-          <div class="stimulusWrap">
-            <div class="stimulusLabel">B</div>
-            <div class="pair ${leftHasGap ? 'no-gap' : 'has-gap'}"><div class="bar left"></div><div class="bar right"></div></div>
-          </div>
-        </div>
-        <div class="choose">
-          <button data-i="${i}" data-choice="left">Mezera je A</button>
-          <button data-i="${i}" data-choice="right">Mezera je B</button>
-          <div class="choiceState ${state}">${stateText}</div>
-        </div>`;
-      chart.appendChild(card);
-    });
-    updateResult();
-  }
-  function updateResult(){
-    if(selected === null){
-      resultBox.innerHTML = 'Vyber u řádku, jestli je mezera v A nebo v B. Po správné volbě se řádek počítá jako rozlišený.';
-      return;
-    }
-    const r = rows()[selected];
-    const d = Number(distance.value)||5;
-    resultBox.innerHTML = `
-      Nejmenší rozlišená mezera: <strong>${fmt(r.angle,2)}′</strong><br>
-      To odpovídá zornému úhlu přibližně <strong>${fmt(r.angle*60,0)}″</strong>.<br>
-      <span style="color:var(--muted)">Vzdálenost: ${fmt(d,2)} m, mezera na plátně: ${fmt(r.gap,2)} mm.</span>
-      <div class="formula">θ = 2·arctan((mezera/2)/vzdálenost)</div>`;
+function getAllowedAngles(){
+  return el("directions").value === "4" ? [0,90,180,270] : [0,45,90,135,180,225,270,315];
+}
+
+function compute(){
+  const calMm = parseFloat(el("calMm").value);
+  const distCm = parseFloat(el("distCm").value);
+  const arcmin = parseFloat(el("arcmin").value);
+
+  const pxPerMm = calPx / calMm;
+  const thetaRad = (arcmin / 60) * Math.PI / 180;
+  const gapMm = (distCm * 10) * Math.tan(thetaRad);
+  const gapPx = gapMm * pxPerMm;
+  const rawDiamPx = gapPx * 5;
+  const tooSmall = rawDiamPx < 1;
+
+  if(tooSmall){
+    document.getElementById("feedback").textContent =
+      "Mezera je menší než 1 px — na tomto displeji ji nelze fyzikálně přesně zobrazit.";
+    document.getElementById("feedback").className = "feedback bad";
   }
 
-  [calMm, scale, distance, lineMm, preset].forEach(el=>el.addEventListener('input',()=>{ selected=null; answers=[]; render(); }));
-  chart.addEventListener('click',e=>{
-    const btn=e.target.closest('button[data-i]');
-    if(!btn) return;
-    const i = Number(btn.dataset.i);
-    answers[i] = btn.dataset.choice;
-    selected = answers[i] === sideWithGap(i) ? i : null;
-    render();
+  const diamPx = tooSmall ? 1 : rawDiamPx;
+  const diamMm = gapMm * 5;
+
+  el("pxPerMm").textContent = fmt(pxPerMm,2);
+  el("gapMm").textContent = fmt(gapMm,3);
+  el("gapPx").textContent = fmt(gapPx,2);
+  el("diamMm").textContent = fmt(diamMm,3);
+
+  el("landolt").setAttribute("width", diamPx);
+  el("landolt").setAttribute("height", diamPx);
+
+  return {arcmin, gapMm, gapPx, diamPx};
+}
+
+function drawLandolt(diamPx, gapPx){
+  const svg = document.getElementById("landolt");
+  const group = document.getElementById("landoltGroup");
+
+  const rOuter = diamPx / 2;
+  const stroke = diamPx * 0.2;
+  const rInner = Math.max(0.1, rOuter - stroke);
+
+  svg.setAttribute("viewBox", `${-rOuter-4} ${-rOuter-4} ${(rOuter+4)*2} ${(rOuter+4)*2}`);
+
+  group.innerHTML = `
+    <circle cx="0" cy="0" r="${rOuter}" fill="black"></circle>
+    <circle cx="0" cy="0" r="${rInner}" fill="white"></circle>
+    <rect x="0" y="${-gapPx/2}" width="${rOuter+stroke+2}" height="${gapPx}" fill="white"></rect>
+  `;
+}
+
+function randomize(){
+  const values = compute();
+  drawLandolt(values.diamPx, values.gapPx);
+  const angles = getAllowedAngles();
+  currentAngle = angles[Math.floor(Math.random()*angles.length)];
+  el("landoltGroup").setAttribute("transform", `rotate(${currentAngle})`);
+  el("feedback").textContent = "";
+  el("feedback").className = "feedback";
+  updateChoiceVisibility();
+}
+
+function updateChoiceVisibility(){
+  const allowed = new Set(getAllowedAngles().map(String));
+  document.querySelectorAll("[data-angle]").forEach(btn=>{
+    btn.style.visibility = allowed.has(btn.dataset.angle) ? "visible" : "hidden";
   });
-  document.querySelectorAll('[data-scale]').forEach(btn=>btn.addEventListener('click',()=>{scale.value=btn.dataset.scale;render();}));
-  $('#newTest').addEventListener('click',()=>{ mixSeed = Date.now(); selected=null; answers=[]; render(); });
-  $('#toggleDark').addEventListener('click',()=>document.body.classList.toggle('dark'));
-  $('#toggleUi').addEventListener('click',()=>document.body.classList.toggle('hide-ui'));
-  $('#printBtn').addEventListener('click',()=>window.print());
-  document.addEventListener('keydown',e=>{
-    if(e.key.toLowerCase()==='d') document.body.classList.toggle('dark');
-    if(e.key.toLowerCase()==='f') document.body.classList.toggle('hide-ui');
+}
+
+function record(answerAngle){
+  const arcmin = parseFloat(el("arcmin").value);
+  const key = arcmin.toFixed(2).replace(".", ",") + "'";
+  if(!stats[key]) stats[key] = {tries:0, correct:0};
+  stats[key].tries++;
+  const ok = Number(answerAngle) === currentAngle;
+  if(ok) stats[key].correct++;
+
+  el("feedback").textContent = ok ? "Správně" : "Špatně";
+  el("feedback").className = "feedback " + (ok ? "ok" : "bad");
+  renderStats();
+
+  setTimeout(randomize, 450);
+}
+
+function renderStats(){
+  const body = el("resultsBody");
+  body.innerHTML = "";
+  Object.keys(stats).sort((a,b)=>parseFloat(a)-parseFloat(b)).forEach(key=>{
+    const s = stats[key];
+    const pct = s.tries ? 100*s.correct/s.tries : 0;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${key}</td><td>${s.tries}</td><td>${s.correct}</td><td>${fmt(pct,1)} %</td>`;
+    body.appendChild(tr);
   });
-  render();
-})();
+}
+
+document.querySelectorAll("[data-angle]").forEach(btn=>{
+  btn.addEventListener("click", ()=>record(btn.dataset.angle));
+});
+
+document.addEventListener("keydown", e=>{
+  const map = {
+    ArrowRight:0, ArrowDown:90, ArrowLeft:180, ArrowUp:270,
+    q:225, e:315, z:135, c:45, Q:225, E:315, Z:135, C:45
+  };
+  if(map[e.key] !== undefined){
+    const allowed = getAllowedAngles();
+    if(allowed.includes(map[e.key])) record(map[e.key]);
+  }
+});
+
+el("applyBtn").addEventListener("click", randomize);
+el("randomBtn").addEventListener("click", randomize);
+el("directions").addEventListener("change", randomize);
+el("resetBtn").addEventListener("click", ()=>{
+  stats = {};
+  renderStats();
+  el("feedback").textContent = "";
+});
+
+compute();
+randomize();
 </script>
 </body>
 </html>
