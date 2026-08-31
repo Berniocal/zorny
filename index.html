@@ -23,7 +23,8 @@
     color:var(--text);
   }
   header{
-    padding:18px 20px;
+    position:relative;
+    padding:18px 150px 18px 20px;
     background:linear-gradient(135deg,#e8f0ff,#ffffff);
     border-bottom:1px solid #d8dee8;
   }
@@ -70,6 +71,21 @@
     color:#111827;
   }
   button.good{background:var(--ok)}
+  .htmlDownload{
+    position:absolute;
+    top:14px;
+    right:18px;
+    width:auto;
+    margin:0;
+    padding:7px 10px;
+    border:1px solid #cbd5e1;
+    background:rgba(255,255,255,.82);
+    color:#475569;
+    font-size:12px;
+    font-weight:650;
+    border-radius:10px;
+    box-shadow:none;
+  }
   .small{font-size:12px;color:var(--muted);line-height:1.35}
   .calLineWrap{
     margin:14px 0 4px;
@@ -180,6 +196,8 @@
     font-size:13px;
   }
   @media(max-width:850px){
+    header{padding:18px 20px}
+    .htmlDownload{position:static;margin-top:10px}
     main{grid-template-columns:1fr}
     .testArea{min-height:60vh}
   }
@@ -189,6 +207,8 @@
 <header>
   <h1>Měření rozlišovací schopnosti oka – Landoltovo C</h1>
   <p>Kalibrace přes pravítko + vzdálenost oka od telefonu. Výstupem je úhlová velikost mezery v úhlových minutách.</p>
+  <!-- bernio-download-html -->
+  <button type="button" id="downloadHtmlBtn" class="htmlDownload" title="Stáhnout tuto aplikaci jako samostatný HTML soubor">⬇️ Stáhnout HTML</button>
 </header>
 
 <main>
@@ -395,6 +415,19 @@ function renderStats(){
   });
 }
 
+function downloadCurrentHtml(){
+  const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'zorny-uhel.html';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 0);
+}
+
 document.querySelectorAll("[data-angle]").forEach(btn=>{
   btn.addEventListener("click", ()=>record(btn.dataset.angle));
 });
@@ -413,6 +446,7 @@ document.addEventListener("keydown", e=>{
 el("applyBtn").addEventListener("click", randomize);
 el("randomBtn").addEventListener("click", randomize);
 el("directions").addEventListener("change", randomize);
+el("downloadHtmlBtn").addEventListener("click", downloadCurrentHtml);
 el("resetBtn").addEventListener("click", ()=>{
   stats = {};
   renderStats();
